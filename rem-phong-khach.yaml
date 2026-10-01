@@ -1,0 +1,197 @@
+esphome:
+  name: rem-phong-khach
+  friendly_name: Rem phong khach
+
+esp32:
+  variant: esp32c3
+  framework:
+    type: esp-idf
+
+logger:
+
+api:
+  encryption:
+    key: "8yhxs85n76UojJL+CIZXwvCzvF8pqe43ewUrWLrG1qE="
+
+ota:
+  - platform: esphome
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: Rem phong khach Fallback Hotspot
+    password: "12345678"
+
+captive_portal:
+
+globals:
+  - id: ignore_sensor
+    type: bool
+    restore_value: no
+    initial_value: 'false'
+
+#=========== STATUS LED ==============#
+status_led:
+  pin:
+    number: GPIO8
+
+#=========== CPU CONFIGS ==============#  
+text_sensor:
+  - platform: uptime
+    name: "Uptime"
+    
+  - platform: wifi_info
+    ssid:
+      name: "WiFi SSID"
+      icon: mdi:wifi-sync
+
+  - platform: wifi_info
+    ip_address:
+      name: "IP Address"
+      icon: mdi:ip-network-outline
+
+  - platform: wifi_info
+    bssid:
+      name: "BSSID"  
+      icon: mdi:wifi-marker
+
+  - platform: wifi_info
+    mac_address:
+      name: "MAC"  
+      icon: mdi:wifi-marker      
+
+sensor:
+  - platform: wifi_signal
+    name: "WiFi Signal"
+    update_interval: 60s
+   
+  - platform: internal_temperature  
+    name: "CPU Temp"
+    
+#=========== OUTPUT ==============#     
+output:    
+  - platform: gpio
+    id: curtain_open    
+    pin:
+      number: GPIO3
+      allow_other_uses: true
+      mode:
+        output: true
+        input: true
+        open_drain: true
+    inverted: true    
+
+  - platform: gpio
+    id: curtain_close    
+    pin:
+      number: GPIO4
+      allow_other_uses: true
+      mode:
+        output: true
+        input: true
+        open_drain: true
+    inverted: true 
+
+  - platform: gpio
+    id: curtain_stop
+    pin:
+      number: GPIO1
+      allow_other_uses: true
+      mode:
+        output: true
+        input: true   
+        open_drain: true
+    inverted: true
+
+#===========INPUT (Đồng bộ trạng thái nút bấm) ==============#     
+binary_sensor:
+  - platform: gpio
+    id: open_sensor
+    name: open_sensor
+    internal: true
+    pin:
+      number: GPIO3
+      allow_other_uses: true
+      mode:
+        input: true
+        output: true
+        pullup: false
+    on_press:
+      - if:
+          condition:
+            lambda: return !id(ignore_sensor);
+          then:
+            - cover.open: curtain_pk
+
+  - platform: gpio
+    id: close_sensor
+    name: close_sensor
+    internal: true
+    pin:
+      number: GPIO4
+      allow_other_uses: true
+      mode:
+        input: true
+        output: true
+        pullup: false
+    on_press:
+      - if:
+          condition:
+            lambda: return !id(ignore_sensor);
+          then:
+            - cover.close: curtain_pk
+
+  - platform: gpio
+    id: stop_sensor
+    name: stop_sensor
+    internal: true
+    pin:
+      number: GPIO1
+      allow_other_uses: true
+      mode:
+        input: true
+        output: true
+        pullup: false
+    on_press:
+      - if:
+          condition:
+            lambda: return !id(ignore_sensor);
+          then:
+            - cover.stop: curtain_pk
+    
+#=========== COVER ==============#  
+cover:
+  - platform: time_based
+    name: "Rèm phòng khách"
+    id: curtain_pk
+    device_class: curtain
+
+    open_action:
+      - lambda: id(ignore_sensor) = true;
+      - output.turn_on: curtain_open
+      - delay: 100ms
+      - output.turn_off: curtain_open
+      - delay: 200ms
+      - lambda: id(ignore_sensor) = false;
+
+    close_action:
+      - lambda: id(ignore_sensor) = true;
+      - output.turn_on: curtain_close
+      - delay: 100ms
+      - output.turn_off: curtain_close
+      - delay: 200ms
+      - lambda: id(ignore_sensor) = false;
+
+    stop_action:
+      - lambda: id(ignore_sensor) = true;
+      - output.turn_on: curtain_stop
+      - delay: 100ms
+      - output.turn_off: curtain_stop
+      - delay: 200ms
+      - lambda: id(ignore_sensor) = false;
+
+    open_duration: 16s
+    close_duration: 16s    
+    manual_control: false
+    assumed_state: true
